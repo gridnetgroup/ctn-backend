@@ -13,8 +13,25 @@
 // ---------------------------------------------------------------------------
 const { Resend } = require('resend');
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_ADDRESS = process.env.FROM_EMAIL || 'Caribbean Tech News <releases@caribbeantechnews.com>';
+
+// Built lazily (only when an email actually needs to send) rather than at
+// require-time. Constructing the Resend client eagerly with no API key
+// throws immediately and takes down the whole server on startup — which is
+// exactly what happened the first time this deployed without
+// RESEND_API_KEY set. Emails not sending is a much smaller problem than
+// the entire backend refusing to boot.
+let resend = null;
+function getResendClient() {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('[email] RESEND_API_KEY is not set — skipping this email. Everything else (payment, admin queue) still works.');
+    return null;
+  }
+  if (!resend) {
+    resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resend;
+}
 
 /**
  * Email #1 — Payment Received.
@@ -22,9 +39,11 @@ const FROM_ADDRESS = process.env.FROM_EMAIL || 'Caribbean Tech News <releases@ca
  * handler, never from the client).
  */
 async function sendPaymentConfirmation(submission) {
+  const client = getResendClient();
+  if (!client) return null;
   const { email, contactName, company, headline, id } = submission;
 
-  return resend.emails.send({
+  return client.emails.send({
     from: FROM_ADDRESS,
     to: email,
     subject: `Payment received — ${headline}`,
@@ -58,9 +77,11 @@ async function sendPaymentConfirmation(submission) {
  * live, before it's actually published.
  */
 async function sendApprovedNotice(submission) {
+  const client = getResendClient();
+  if (!client) return null;
   const { email, contactName, company, headline } = submission;
 
-  return resend.emails.send({
+  return client.emails.send({
     from: FROM_ADDRESS,
     to: email,
     subject: `Approved — ${headline}`,
@@ -87,9 +108,11 @@ async function sendApprovedNotice(submission) {
  * "you're live" moment. Contains the live URL.
  */
 async function sendPublishedNotice(submission, liveUrl) {
+  const client = getResendClient();
+  if (!client) return null;
   const { email, contactName, company, headline } = submission;
 
-  return resend.emails.send({
+  return client.emails.send({
     from: FROM_ADDRESS,
     to: email,
     subject: `You're live — ${headline}`,
@@ -114,8 +137,10 @@ async function sendPublishedNotice(submission, liveUrl) {
 async function sendEditorAlert(submission) {
   const editorInbox = process.env.EDITOR_ALERT_EMAIL;
   if (!editorInbox) return; // optional — skip silently if not configured
+  const client = getResendClient();
+  if (!client) return null;
 
-  return resend.emails.send({
+  return client.emails.send({
     from: FROM_ADDRESS,
     to: editorInbox,
     subject: `New release awaiting review — ${submission.company}`,
