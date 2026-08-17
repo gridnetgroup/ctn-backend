@@ -94,4 +94,4 @@ function unwrapWebhook(rawBodyText, headers) {
   return client.webhooks.unwrap(rawBodyText, { headers });
 }
 
-module.exports = { createHostedCheckout, unwrapWebhook };
+module.exports = { createHostedCheckout, unwrapWebhook, whopSecretToStandardWebhooksFormat };
