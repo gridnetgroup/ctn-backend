@@ -14,7 +14,24 @@ if (!process.env.WHOP_COMPANY_ID) {
   console.warn('[whop] WHOP_COMPANY_ID is not set — checkout will fail until it is.');
 }
 
-const client = new Whop({ apiKey: process.env.WHOP_API_KEY || 'placeholder' });
+const client = new Whop({
+  apiKey: process.env.WHOP_API_KEY || 'placeholder',
+  // The underlying signature-verification library (standardwebhooks) only
+  // recognizes secrets prefixed "whsec_" — that's the general convention
+  // most Standard Webhooks implementations use. Whop's own dashboard,
+  // though, hands out secrets prefixed "ws_" instead. Passed through
+  // as-is, the library tries to base64-decode the literal "ws_" prefix
+  // and fails immediately with a decoding error — confirmed directly by
+  // reproducing it locally. This translates Whop's format to what the
+  // library actually expects, so you can paste the secret exactly as
+  // Whop shows it, with no manual editing.
+  webhookKey: whopSecretToStandardWebhooksFormat(process.env.WHOP_WEBHOOK_SECRET),
+});
+
+function whopSecretToStandardWebhooksFormat(secret) {
+  if (!secret) return null;
+  return secret.startsWith('ws_') ? `whsec_${secret.slice(3)}` : secret;
+}
 
 /**
  * Step 2 -> Step 3: create a Whop checkout configuration for this specific
