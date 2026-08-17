@@ -29,12 +29,19 @@ router.post('/whop', express.raw({ type: 'application/json' }), async (req, res)
     return res.status(400).send('Invalid signature');
   }
 
-  if (event.type === 'payment.succeeded') {
+  // Whop's own docs say "payment.succeeded" (dot notation), but the live
+  // dashboard's event picker shows "payment_succeeded" (underscore) — a
+  // real, first-hand mismatch between their documentation and their
+  // current product. Rather than bet on one and risk silently ignoring
+  // every real payment, this accepts either spelling.
+  const isPaymentSucceeded = event.type === 'payment.succeeded' || event.type === 'payment_succeeded';
+
+  if (isPaymentSucceeded) {
     const paymentData = event.data;
     const submissionId = paymentData.metadata?.submission_id;
 
     if (!submissionId) {
-      console.error('[webhook] payment.succeeded with no submission_id in metadata:', paymentData.metadata);
+      console.error(`[webhook] ${event.type} with no submission_id in metadata:`, paymentData.metadata);
       return res.status(200).json({ received: true }); // ack anyway — nothing to retry
     }
 
