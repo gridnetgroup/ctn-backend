@@ -20,7 +20,7 @@ app.use('/api/webhooks', webhookRouter);
 app.use(express.json());
 
 app.use('/api/submissions', submissionsRouter);
-app.use('/api/admin/submissions', adminRouter);
+app.use('/api/admin', adminRouter);
 
 app.get('/health', (req, res) => res.json({ ok: true }));
 
@@ -36,21 +36,6 @@ app.get('/debug/webhook-secret-check', (req, res) => {
   const raw = process.env.WHOP_WEBHOOK_SECRET || '';
   const translated = whopSecretToStandardWebhooksFormat(raw);
 
-  let base64Valid = false;
-  let base64Error = null;
-  if (translated && translated.startsWith('whsec_')) {
-    try {
-      const b64part = translated.slice('whsec_'.length);
-      const decoded = Buffer.from(b64part, 'base64');
-      // A real round-trip check: re-encoding should match the original
-      // (loosely) — this catches garbage that Buffer.from silently
-      // tolerates instead of throwing on.
-      base64Valid = decoded.length > 0 && Buffer.from(decoded).toString('base64').replace(/=+$/, '') === b64part.replace(/=+$/, '');
-    } catch (err) {
-      base64Error = err.message;
-    }
-  }
-
   res.json({
     rawIsSet: raw.length > 0,
     rawLength: raw.length,
@@ -58,9 +43,7 @@ app.get('/debug/webhook-secret-check', (req, res) => {
     rawEndsWith: raw.slice(-4),
     rawContainsWhitespace: /\s/.test(raw),
     rawContainsLiteralEllipsis: raw.includes('...'),
-    translatedPrefix: translated ? translated.slice(0, 6) : null,
-    base64Valid,
-    base64Error,
+    translatedLength: translated ? translated.length : 0,
   });
 });
 
