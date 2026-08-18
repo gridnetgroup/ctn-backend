@@ -56,16 +56,14 @@ router.post('/checkout', async (req, res) => {
   }
 });
 
-/** Editor console reads from here instead of a hardcoded array. */
-router.get('/', (req, res) => {
-  const { status } = req.query;
-  res.json(db.listSubmissions(status));
-});
-
-router.get('/:id', (req, res) => {
-  const submission = db.getSubmission(req.params.id);
-  if (!submission) return res.status(404).json({ error: 'Not found' });
-  res.json(submission);
-});
+/**
+ * Note: this router only exposes /checkout, and only that one is meant to
+ * be public. Listing or reading individual submissions (which includes
+ * names, emails, and unpublished press releases) now lives under
+ * /api/admin/submissions in routes/admin.js instead — behind a login. An
+ * earlier version of this file also had GET / and GET /:id here, with no
+ * authentication at all; that was a real data exposure, not just an
+ * incomplete feature, and has been removed rather than protected in place.
+ */
 
 module.exports = router;
